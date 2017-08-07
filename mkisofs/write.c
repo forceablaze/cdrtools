@@ -58,6 +58,26 @@ static	UConst char sccsid[] =
 
 #define	INSERTMACRESFORK 1
 
+#include "config.h"
+#include "human.h"
+#include "gethrxtime.h"
+#include "xtime.h"
+
+enum { human_opts = (human_autoscale | human_round_to_nearest
+                     | human_space_before_unit | human_SI | human_B) };
+
+/* Number of bytes written.  */
+static uintmax_t w_bytes = 0;
+
+/* Time that dd started.  */
+static xtime_t start_time;
+
+/* Next time to report periodic progress.  */
+static xtime_t next_time;
+
+/* If positive, the number of bytes output in the current progress line.  */
+static int progress_len;
+
 /* Counters for statistics */
 
 LOCAL int	table_size = 0;
@@ -159,6 +179,85 @@ LOCAL 	int	sort_file_addresses __PR((void));
  * we could write a tape, or write the disc directly
  */
 #define	FILL_SPACE(X)	memset(vol_desc.X, ' ', sizeof (vol_desc.X))
+
+/* Return a value that pluralizes the same way that N does, in all
+   languages we know of.  */
+static inline unsigned long int
+select_plural (uintmax_t n)
+{
+  /* Reduce by a power of ten, but keep it away from zero.  The
+     gettext manual says 1000000 should be safe.  */
+  enum { PLURAL_REDUCER = 1000000 };
+  return (n <= ULONG_MAX ? n : n % PLURAL_REDUCER + PLURAL_REDUCER);
+}
+
+static bool
+abbreviation_lacks_prefix (char const *message)
+{
+  return message[strlen (message) - 2] == ' ';
+}
+
+static void print_xfer_stats(xtime_t progress_time)
+{
+  xtime_t now = progress_time ? progress_time : gethrxtime();
+  char hbuf[3][LONGEST_HUMAN_READABLE + 1];
+  double delta_s;
+
+  char const *bytes_per_second;
+  char const *si = human_readable (w_bytes, hbuf[0], human_opts, 1, 1);
+  char const *iec = human_readable (w_bytes, hbuf[1],
+                                    human_opts | human_base_1024, 1, 1);
+
+  if(start_time < now)
+  {
+    double XTIME_PRECISIONe0 = XTIME_PRECISION;
+    uintmax_t delta_xtime = now;
+    delta_xtime -= start_time;
+    delta_s = delta_xtime / XTIME_PRECISIONe0;
+    bytes_per_second = human_readable (w_bytes, hbuf[2], human_opts,
+                                         XTIME_PRECISION, delta_xtime);
+  }
+  else {
+    delta_s = 0;
+    bytes_per_second = _("Infinity B");
+  }
+
+  /*
+  if (progress_time)
+    fputc ('\r', stderr);
+  */
+
+  /* TRANSLATORS: The instances of "s" in the following formats are
+     the SI symbol "s" (meaning second), and should not be translated.
+     The strings use SI symbols for better internationalization even
+     though they may be a bit more confusing in English.  If one of
+     these formats A looks shorter on the screen than another format
+     B, then A's string length should be less than B's, and appending
+     strlen (B) - strlen (A) spaces to A should make it appear to be
+     at least as long as B.  */
+
+  int stats_len
+    = (abbreviation_lacks_prefix (si)
+       ? fprintf (stderr,
+                  ngettext ("%"PRIuMAX" byte copied, %g s, %s/s\n",
+                            "%"PRIuMAX" bytes copied, %g s, %s/s\n",
+                            select_plural (w_bytes)),
+                  w_bytes, delta_s, bytes_per_second)
+       : abbreviation_lacks_prefix (iec)
+       ? fprintf (stderr,
+                  _("%"PRIuMAX" bytes (%s) copied, %g s, %s/s\n"),
+                  w_bytes, si, delta_s, bytes_per_second)
+       : fprintf (stderr,
+                  _("%"PRIuMAX" bytes (%s, %s) copied, %g s, %s/s\n"),
+                  w_bytes, si, iec, delta_s, bytes_per_second));
+
+  if (progress_time) {
+    if (0 <= stats_len && stats_len < progress_len)
+      fprintf (stderr, "%*s\n", progress_len - stats_len, "");
+      progress_len = stats_len;
+  } else
+    fputc ('\n', stderr);
+}
 
 EXPORT void
 xfwrite(buffer, size, count, file, submode, islast)
@@ -386,6 +485,7 @@ static	char		buffer[SECTOR_SIZE * NSECT];
 	int	bytestowrite = 0;	/* Dummy init. to serve GCC bug */
 	int	correctedsize = 0;
 
+  fprintf(stderr, "%s\n", __func__);
 
 	if ((infile = fopen(filename, "rb")) == NULL) {
 		if (!errhidden(E_OPEN, filename)) {
@@ -413,9 +513,17 @@ static	char		buffer[SECTOR_SIZE * NSECT];
 #endif
 #endif	/* APPLE_HYB || USE_LARGEFILES */
 	remain = size;
+  w_bytes = 0;
+  fprintf(stderr, "remain %lu\n", remain);
 
 	while (remain > 0) {
 		int	amt;
+
+    xtime_t progress_time = gethrxtime ();
+    if (next_time <= progress_time) {
+      print_xfer_stats (progress_time);
+      next_time += XTIME_PRECISION;
+    }
 
 		unroundeduse = use = (remain > SECTOR_SIZE * NSECT - 1 ?
 				NSECT * SECTOR_SIZE : remain);
@@ -489,6 +597,7 @@ static	char		buffer[SECTOR_SIZE * NSECT];
 
 		xfwrite(buffer, bytestowrite, 1, outfile,
 				XA_SUBH_DATA, remain <= (SECTOR_SIZE * NSECT));
+    w_bytes += bytestowrite;
 		last_extent_written += use / SECTOR_SIZE;
 #if 0
 		if ((last_extent_written % 1000) < use / SECTOR_SIZE) {
@@ -506,10 +615,10 @@ static	char		buffer[SECTOR_SIZE * NSECT];
 			frac = last_extent_written / (1.0 * last_extent);
 			the_end = begun + (now - begun) / frac;
 #ifndef NO_FLOATINGPOINT
-			fprintf(stderr, _("%6.2f%% done, estimate finish %s"),
+			fprintf(stderr, _("%6.2f%% done, HAHAHA estimate finish %s"),
 				frac * 100., ctime(&the_end));
 #else
-			fprintf(stderr, _("%3d.%-02d%% done, estimate finish %s"),
+			fprintf(stderr, _("%3d.%-02d%% done, HAHAHA estimate finish %s"),
 				(int)(frac * 100.),
 				(int)((frac+.00005) * 10000.)%100,
 				ctime(&the_end));
@@ -570,8 +679,19 @@ write_files(outfile)
 				*dwnext;
 	unsigned		rba = 0;
 
+  fprintf(stderr, "%s head@%p\n", __func__, dw_head);
+
 	dwpnt = dw_head;
+  if(dwpnt == NULL)
+    fprintf(stderr, "dwpnt is NULL %s\n", __func__);
+  else
+    fprintf(stderr, "dwpnt is not NULL %s\n", __func__);
+
 	while (dwpnt) {
+    fprintf(stderr, "enter loop %s\n", __func__);
+    start_time = gethrxtime();
+    next_time = start_time + XTIME_PRECISION;
+
 /*#define DEBUG*/
 #ifdef DEBUG
 		fprintf(stderr,
@@ -609,6 +729,7 @@ write_files(outfile)
 				write_one_file(dwpnt->name, dwpnt->size, outfile, dwpnt->off,
 					file_is_resource(dwpnt->name, dwpnt->hfstype) && (dwpnt->size > 0), rba);
 #else
+
 				write_one_file(dwpnt->name, dwpnt->size, outfile);
 #endif	/* APPLE_HYB */
 #ifdef UDF
@@ -993,8 +1114,11 @@ sort_file_addresses()
 	sortlist = (struct deferred_write **)
 		e_malloc(sizeof (struct deferred_write *) * num);
 
-	for (i = 0, dwpnt = dw_head; i < num; i++, dwpnt = dwpnt->next)
+	for (i = 0, dwpnt = dw_head; i < num; i++, dwpnt = dwpnt->next) {
 		sortlist[i] = dwpnt;
+    if(dwpnt)
+      fprintf(stderr, "%s\n", dwpnt->name);
+  }
 
 	/* sort the list */
 #ifdef PROTOTYPES
@@ -1074,6 +1198,14 @@ assign_file_addresses(dpnt, isnest)
 #endif
 	BOOL	ret = FALSE;
 
+  fprintf(stderr, "%s\n", __func__);
+  /*
+  if(dpnt) {
+    fprintf(stderr, "dpnt not NULL\n");
+  } else {
+    fprintf(stderr, "dpnt is NULL\n");
+  }
+  */
 	while (dpnt) {
 #ifdef DVD_VIDEO
 		if (dvd_video && root == dpnt->parent &&
@@ -1361,11 +1493,13 @@ assign_file_addresses(dpnt, isnest)
 				}
 #endif
 				if (dw_tail) {
+          //fprintf(stderr, "%s has dw_tail %p\n", __func__, dw_tail);
 					dw_tail->next = dwpnt;
 					dw_tail = dwpnt;
 				} else {
 					dw_head = dwpnt;
 					dw_tail = dwpnt;
+          //fprintf(stderr, "%s dw_head %p\n", __func__, dw_head);
 				}
 				add_hash(s_entry);
 				/*
@@ -1882,6 +2016,8 @@ file_write(outfile)
 	FILE	*outfile;
 {
 	Uint	should_write;
+
+  fprintf(stderr, "%s\n", __func__);
 
 #ifdef APPLE_HYB
 	char	buffer[SECTOR_SIZE];

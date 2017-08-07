@@ -63,20 +63,10 @@ static	UConst char sccsid[] =
 
 #include "../cdrecord/version.h"
 
-#include "config.h"
-#include "gethrxtime.h"
-#include "xtime.h"
-
 struct directory *root = NULL;
 int		path_ind;
 
 char	version_string[] = VERSION;
-
-static uintmax_t w_bytes = 0;
-
-static xtime_t start_time;
-
-static xtime_t next_time;
 
 char		*outfile;
 FILE		*discimage;
