@@ -5,7 +5,7 @@
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
 /* Define to the function xargmatch calls on failures. */
-#define ARGMATCH_DIE usage (EXIT_FAILURE)
+//#define ARGMATCH_DIE usage (EXIT_FAILURE)
 
 /* Define to the declaration of the xargmatch failure function. */
 #define ARGMATCH_DIE_DECL void usage (int _e)

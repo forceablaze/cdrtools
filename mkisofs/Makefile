@@ -47,13 +47,23 @@ CFILES=		mkisofs.c tree.c write.c hash.c rock.c inode.c udf.c multi.c \
 		apple.c volume.c desktop.c mac_label.c stream.c \
 		ifo_read.c dvd_file.c dvd_reader.c \
 		walk.c \
-		timespec.c xtime.c gethrxtime.c gettime.c
+		timespec.c xtime.c gethrxtime.c gettime.c \
+		human.c xstrtol.c argmatch.c \
+		quotearg.c xmalloc.c xalloc-die.c \
+		exitfail.c localcharset.c \
+		xstrtoumax.c c-strcasecmp.c
+
 HFILES=		apple.h bootinfo.h defaults.h diskmbr.h \
 		iso9660.h mac_label.h mactypes.h match.h \
 		mkisofs.h sunlabel.h udf.h udf_fs.h vms.h \
 		ifo_read.h dvd_file.h dvd_reader.h bswap.h ifo_types.h \
-		timespec.h xtime.h gethrxtime.h config.h
-
+		timespec.h xtime.h gethrxtime.h config.h \
+		human.h xstrtol.h \
+		argmatch.h xstrtol.h assure.h intprops.h verify.h \
+		gettext.h quotearg.h unlocked-io.h quote.h \
+		xalloc.h xalloc-oversized.h \
+		c-strcaseeq.h c-strcase.h c-ctype.h \
+		localcharset.h exitfail.h
 #
 # LIB_CAP is needed for Linux capability support in librscg.
 #
