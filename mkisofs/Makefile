@@ -46,11 +46,13 @@ CFILES=		mkisofs.c tree.c write.c hash.c rock.c inode.c udf.c multi.c \
 		scsi.c \
 		apple.c volume.c desktop.c mac_label.c stream.c \
 		ifo_read.c dvd_file.c dvd_reader.c \
-		walk.c
+		walk.c \
+		timespec.c xtime.c gethrxtime.c gettime.c
 HFILES=		apple.h bootinfo.h defaults.h diskmbr.h \
 		iso9660.h mac_label.h mactypes.h match.h \
 		mkisofs.h sunlabel.h udf.h udf_fs.h vms.h \
-		ifo_read.h dvd_file.h dvd_reader.h bswap.h ifo_types.h
+		ifo_read.h dvd_file.h dvd_reader.h bswap.h ifo_types.h \
+		timespec.h xtime.h gethrxtime.h config.h
 
 #
 # LIB_CAP is needed for Linux capability support in librscg.
