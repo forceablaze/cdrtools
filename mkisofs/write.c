@@ -738,6 +738,8 @@ write_files(outfile)
 #endif	/* VMS */
 			free(dwpnt->name);
 			dwpnt->name = NULL;
+
+      print_xfer_stats (0);
 		}
 
 
