@@ -615,10 +615,10 @@ static	char		buffer[SECTOR_SIZE * NSECT];
 			frac = last_extent_written / (1.0 * last_extent);
 			the_end = begun + (now - begun) / frac;
 #ifndef NO_FLOATINGPOINT
-			fprintf(stderr, _("%6.2f%% done, HAHAHA estimate finish %s"),
+			fprintf(stderr, _("%6.2f%% done, estimate finish %s"),
 				frac * 100., ctime(&the_end));
 #else
-			fprintf(stderr, _("%3d.%-02d%% done, HAHAHA estimate finish %s"),
+			fprintf(stderr, _("%3d.%-02d%% done, estimate finish %s"),
 				(int)(frac * 100.),
 				(int)((frac+.00005) * 10000.)%100,
 				ctime(&the_end));
@@ -679,13 +679,7 @@ write_files(outfile)
 				*dwnext;
 	unsigned		rba = 0;
 
-  fprintf(stderr, "%s head@%p\n", __func__, dw_head);
-
 	dwpnt = dw_head;
-  if(dwpnt == NULL)
-    fprintf(stderr, "dwpnt is NULL %s\n", __func__);
-  else
-    fprintf(stderr, "dwpnt is not NULL %s\n", __func__);
 
 	while (dwpnt) {
     fprintf(stderr, "enter loop %s\n", __func__);
@@ -1118,8 +1112,6 @@ sort_file_addresses()
 
 	for (i = 0, dwpnt = dw_head; i < num; i++, dwpnt = dwpnt->next) {
 		sortlist[i] = dwpnt;
-    if(dwpnt)
-      fprintf(stderr, "%s\n", dwpnt->name);
   }
 
 	/* sort the list */
